@@ -1,47 +1,67 @@
 /* eslint-disable react/no-unknown-property */
-import { Stats, OrbitControls, Environment } from '@react-three/drei'
-import { Canvas, useLoader } from '@react-three/fiber'
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader'
+import { useState } from 'react'
+import { Canvas } from '@react-three/fiber'
+import {
+  useGLTF,
+  OrbitControls,
+  Environment,
+  Stats,
+  Html,
+} from '@react-three/drei'
 import { useControls } from 'leva'
+import Models from './model.json'
 
+function Model({ url }) {
+  const { scene } = useGLTF(url)
+  const [cache, setCache] = useState({})
 
-function Env() {
+  if (!cache[url]) {
+    const annotations = []
 
+    scene.traverse((o) => {
+      if (o.userData.prop) {
+        annotations.push( 
+          <Html
+            key={o.uuid}
+            position={[o.position.x, o.position.y, o.position.z]}
+            distanceFactor={0.25}
+          >
+            <div className="annotation">{o.userData.prop}</div>
+          </Html>
+        )
+      }
+    })
 
-  const { height, radius, scale } = useControls('Ground', {
-    height: { value: 10, min: 0, max: 100, step: 1 },
-    radius: { value: 115, min: 0, max: 1000, step: 1 },
-    scale: { value: 15, min: 0, max: 1000, step: 1 },
-  })
-
-
-  return (
-    <Environment
-      files="/img/sunset.hdr"
-      background
-      ground={{
-        height: height,
-        radius: radius,
-        scale: scale,
-      }}
-      backgroundBlurriness={0}
-    />
-  )
+    console.log('Caching JSX for url ' + url)
+    setCache({
+      ...cache,
+      [url]: <primitive object={scene}>{annotations}</primitive>,
+    })
+  }
+  return cache[url]
 }
 
-
-
 export default function App() {
-  const gltf = useLoader(GLTFLoader, '/models/scene.glb')
+  const { model } = useControls({
+    model: {
+      value: 'hammer',
+      options: Object.keys(Models),
+    },
+  })
 
   return (
-    <Canvas camera={{ position: [0, 20, 20], fov : 40 }}>
-      <Env />
-      <directionalLight position={[3.3, 1.0, 4.4]} />
-      <primitive object={gltf.scene} />
-      <OrbitControls target={[0, 1, 0]} autoRotate maxPolarAngle={Math.PI / 2} />
-      <axesHelper args={[5]} />
-      <Stats />
-    </Canvas>
+    <>
+      <Canvas camera={{ position: [0, 0, -0.2], near: 0.025 }}>
+        <Environment files="/img/workshop_1k.hdr" background />
+        <group>
+          <Model url={Models[model]} />
+        </group>
+        <OrbitControls autoRotate />
+        <Stats />
+      </Canvas>
+      <span id="info">
+        The {model.replace(/([A-Z])/g, ' $1').toLowerCase()} is selected.
+      </span>
+    </>
   )
 }
